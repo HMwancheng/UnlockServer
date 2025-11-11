@@ -1,0 +1,32 @@
+name: Build UnlockServer
+
+on:
+  push:
+    branches: [ main ]  # 监听main分支的推送
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest  # 必须用Windows，依赖Windows蓝牙库
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 安装.NET Framework 4.8 SDK
+      uses: microsoft/setup-msbuild@v2
+      with:
+        msbuild-architecture: x86  # 项目可能依赖32位库
+
+    - name: 恢复NuGet包
+      run: nuget restore UnlockServer/UnlockServer.sln  # 假设解决方案文件路径
+
+    - name: 编译项目
+      run: msbuild UnlockServer/UnlockServer.sln /p:Configuration=Release /p:Platform="Any CPU"
+
+    - name: 上传编译产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: UnlockServer-Build
+        path: UnlockServer/UnlockServer/bin/Release/  # 编译输出目录
