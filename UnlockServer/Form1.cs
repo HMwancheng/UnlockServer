@@ -25,6 +25,12 @@ namespace UnlockServer
     public partial class Form1 : Form
     {
         BluetoothDiscover bluetoothDiscover;
+        // 新增：锁定延迟相关变量
+        private int lockDelaySeconds = 5; // 默认延迟5秒
+        private DateTime? signalLossStartTime = null;
+        private bool isWaitingForLock = false;
+        private bool lockNotificationSent = false;
+
         public Form1()
         {
             InitializeComponent();
@@ -35,6 +41,39 @@ namespace UnlockServer
             this.FormClosing += Form1_FormClosing;
             this.FormClosed += Form1_FormClosed;
 
+            // 新增：添加延迟设置控件
+            AddDelayControl();
+        }
+
+        // 新增：添加延迟设置控件
+        private void AddDelayControl()
+        {
+            Label lblDelay = new Label();
+            lblDelay.Text = "锁定延迟(秒):";
+            lblDelay.Location = new Point(12, 300);
+            lblDelay.Size = new Size(80, 20);
+            this.Controls.Add(lblDelay);
+
+            NumericUpDown numDelay = new NumericUpDown();
+            numDelay.Name = "numDelay";
+            numDelay.Location = new Point(98, 298);
+            numDelay.Size = new Size(60, 22);
+            numDelay.Minimum = 1;
+            numDelay.Maximum = 30;
+            numDelay.Value = lockDelaySeconds;
+            numDelay.ValueChanged += NumDelay_ValueChanged;
+            this.Controls.Add(numDelay);
+        }
+
+        // 新增：延迟时间变更事件
+        private void NumDelay_ValueChanged(object sender, EventArgs e)
+        {
+            NumericUpDown numDelay = sender as NumericUpDown;
+            if (numDelay != null)
+            {
+                lockDelaySeconds = (int)numDelay.Value;
+                OperateIniFile.WriteIniInt("setting", "lockdelay", lockDelaySeconds);
+            }
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -68,7 +107,6 @@ namespace UnlockServer
         }
         private const string SignalStrengthProperty = "System.Devices.Aep.SignalStrength";
 
-        //BluetoothLEAdvertisementWatcher Watcher = new BluetoothLEAdvertisementWatcher();
         private static SessionSwitchClass sessionSwitchClass;
         private void Form1_Load(object sender, EventArgs e)
         {
@@ -86,6 +124,13 @@ namespace UnlockServer
                     return;
                 } 
                 btn_refreshbluetooth_Click(null, null);
+
+                // 新增：从配置加载延迟时间
+                var delayControl = this.Controls["numDelay"] as NumericUpDown;
+                if (delayControl != null)
+                {
+                    delayControl.Value = lockDelaySeconds;
+                }
 
                 Task.Delay(3000).ContinueWith((r) =>
                 {
@@ -146,6 +191,9 @@ namespace UnlockServer
             getBluetoothType();
             reloadLockConfig(); 
             WanClient.reloadConfig();
+
+            // 新增：加载延迟时间配置
+            lockDelaySeconds = OperateIniFile.ReadIniInt("setting", "lockdelay", 5);
         }
 
         private int bletype = 1;
@@ -228,14 +276,18 @@ namespace UnlockServer
                     return;
                 }
 
+                // 新增：保存延迟时间配置
+                var delayControl = this.Controls["numDelay"] as NumericUpDown;
+                if (delayControl != null)
+                {
+                    lockDelaySeconds = (int)delayControl.Value;
+                    OperateIniFile.WriteIniInt("setting", "lockdelay", lockDelaySeconds);
+                }
+
                 OperateIniFile.WriteSafeString("setting", "ip", txtip.Text);
-
                 OperateIniFile.WriteSafeString("setting", "pt", txtpt.Text);
-
                 OperateIniFile.WriteSafeString("setting", "us", txtus.Text);
-
                 OperateIniFile.WriteSafeString("setting", "pd", txtpd.Text);
-
                 OperateIniFile.WriteSafeString("setting", "rssi", txtrssi.Text);
                 setBluetoothType();
                 WanClient.reloadConfig();
@@ -456,12 +508,22 @@ namespace UnlockServer
             return true;
         }
 
+        // 新增：发送锁定通知
+        private void ShowLockNotification(int remainingSeconds)
+        {
+            if (remainingSeconds > 0)
+            {
+                notifyIcon1.ShowBalloonTip(1000, "即将锁定", 
+                    $"蓝牙信号弱或丢失，将在 {remainingSeconds} 秒后锁定电脑...", 
+                    ToolTipIcon.Warning);
+            }
+        }
+
         private void Tick()
         {
             if(isautolock == false && isautounlock == false)
             {
                 //没有启用
-
                 Console.WriteLine("未启用");
                 return;
             }
@@ -474,12 +536,13 @@ namespace UnlockServer
 
             lock (lockLock)
             {
-
                 bool islocked = WanClient.IsSessionLocked();
             
                 if(islocked)
                 {
                     //现在是锁定状态 
+                    // 重置锁定延迟计时器
+                    ResetLockDelayTimer();
                 }
                 else
                 {
@@ -500,88 +563,97 @@ namespace UnlockServer
                     locktimecount = 0; 
                 }
 
-            if(bluetoothDiscover==null)
-            {
-                return;
-            }
-            var Devices = bluetoothDiscover.getAllDevice();
-           
-            MybluetoothDevice device = Devices.FirstOrDefault(p => p.Address == unlockaddress);
-            if (device != null)
-            {
-                Console.WriteLine("发现设备:" + device.Name + "[" + device.Address + "] " + device.Rssi+"dBm");
-                if (device.Rssi < rssiyuzhi)
+                if(bluetoothDiscover==null)
                 {
-                    if(islocked==false )//&& lockCount == 0
-                    { 
-                        if(isautolock)
-                        {
-                                if(sessionSwitchClass.isUnlockBySoft==false && manualunlock == true)
-                                { 
-                                    Console.WriteLine("非软件解锁，不干预！");
-                                    return;
-                                }
-                            Console.WriteLine("信号强度弱，锁屏！"); 
-                            sessionSwitchClass.dolocking = true;
-                                //WanClient.LockPc(); 
-                                LockByTimeOut();
-                            } 
-                        //lockCount++;
-                        //unlockount = 0;
+                    return;
+                }
+                var Devices = bluetoothDiscover.getAllDevice();
+               
+                MybluetoothDevice device = Devices.FirstOrDefault(p => p.Address == unlockaddress);
+                bool signalValid = false;
+                
+                if (device != null)
+                {
+                    Console.WriteLine("发现设备:" + device.Name + "[" + device.Address + "] " + device.Rssi+"dBm");
+                    if (device.Rssi >= rssiyuzhi)
+                    {
+                        signalValid = true;
                     }
+                }
+
+                // 信号有效，重置计时器
+                if (signalValid)
+                {
+                    ResetLockDelayTimer();
+                }
+                // 信号无效，启动或继续延迟计时器
+                else
+                {
+                    HandleInvalidSignal(islocked);
+                }
+            }
+        }
+
+        // 新增：处理无效信号
+        private void HandleInvalidSignal(bool islocked)
+        {
+            if (islocked) return; // 已锁定状态不处理
+
+            if (!isWaitingForLock)
+            {
+                // 开始计时
+                signalLossStartTime = DateTime.Now;
+                isWaitingForLock = true;
+                lockNotificationSent = false;
+                Console.WriteLine("蓝牙信号弱或丢失，开始计时...");
+            }
+            else if (signalLossStartTime.HasValue)
+            {
+                // 计算已等待时间
+                TimeSpan elapsed = DateTime.Now - signalLossStartTime.Value;
+                int remainingSeconds = lockDelaySeconds - (int)elapsed.TotalSeconds;
+
+                // 1秒后发送通知
+                if (!lockNotificationSent && elapsed.TotalSeconds >= 1)
+                {
+                    ShowLockNotification(remainingSeconds > 0 ? remainingSeconds : 0);
+                    lockNotificationSent = true;
+                }
+
+                // 达到延迟时间，执行锁定
+                if (elapsed.TotalSeconds >= lockDelaySeconds)
+                {
+                    Console.WriteLine($"延迟 {lockDelaySeconds} 秒后执行锁定");
+                    if (isautolock)
+                    {
+                        if (sessionSwitchClass.isUnlockBySoft == false && manualunlock == true)
+                        {
+                            Console.WriteLine("非软件解锁，不干预！");
+                            ResetLockDelayTimer();
+                            return;
+                        }
+                        Console.WriteLine("信号强度弱，锁屏！");
+                        sessionSwitchClass.dolocking = true;
+                        LockByTimeOut();
+                    }
+                    ResetLockDelayTimer();
                 }
                 else
-                { 
-                    if (islocked)
-                    { 
-                        if(isautounlock)
-                        {
-                                if(manuallock==true && sessionSwitchClass.isLockBySoft == false)
-                                {
-                                    //不干预人工解锁
-                                    Console.WriteLine("非软件锁定，不干预！");
-                                    return;
-                                }
-                            Console.WriteLine("信号强度够且处于锁屏状态，解锁！");
-                             
-                                sessionSwitchClass.dounlocking = true; 
-                                bool ret = UnLockByTimeOut();   
-
-                             if (ret ==false)
-                            {
-                                isunlockfail = true;
-                            } 
-                        } 
-                    }
-                    else
-                    {
-                        if (isautounlock)
-                        {
-                            Console.WriteLine("信号强度够且但是未处于锁定状态！"); 
-                        } 
-                    }
+                {
+                    Console.WriteLine($"等待锁定... 剩余 {remainingSeconds} 秒");
                 }
             }
-            else
+        }
+
+        // 新增：重置锁定延迟计时器
+        private void ResetLockDelayTimer()
+        {
+            if (isWaitingForLock)
             {
-                if (islocked == false) //  && lockCount == 0
-                    {
-                    if (isautolock)
-                        {
-                            if (sessionSwitchClass.isUnlockBySoft == false && manualunlock == true)
-                            {
-                                Console.WriteLine("非软件解锁，不干预人工解锁！");
-                                return;
-                            } 
-                            Console.WriteLine("找不到设备，锁屏！");
-                            sessionSwitchClass.dolocking = true;
-                            LockByTimeOut();
-                        }
-                    //lockCount++;
-                    //unlockount = 0;
-                }
-            }
-
+                Console.WriteLine("信号恢复，取消锁定");
+                signalLossStartTime = null;
+                isWaitingForLock = false;
+                lockNotificationSent = false;
             }
         }
 
@@ -596,13 +668,7 @@ namespace UnlockServer
         }
         private void handlerPairingReq(DeviceInformationCustomPairing CP, DevicePairingRequestedEventArgs DPR)
         {
-            //so we get here for custom pairing request.
-            //this is the magic place where your pin goes.
-            //my device actually does not require a pin but
-            //windows requires at least a "0".  So this solved 
-            //it.  This does not pull up the Windows UI either.
             DPR.Accept("0"); 
-
         }
         private void button2_Click(object sender, EventArgs e)
         {
@@ -620,8 +686,6 @@ namespace UnlockServer
                 BluetoothAddress ad = BluetoothAddress.Parse(address).ToUInt64();
                 BluetoothLEDevice bluetoothLEDevice = BluetoothLEDevice.FromBluetoothAddressAsync(ad).GetAwaiter().GetResult();
                 bluetoothLEDevice.DeviceInformation.Pairing.Custom.PairingRequested += handlerPairingReq;
-
-                //var prslt = bluetoothLEDevice.DeviceInformation.Pairing.Custom.PairAsync(DevicePairingKinds.ConfirmOnly, DevicePairingProtectionLevel.None).GetAwaiter().GetResult();
 
                 var prslt = bluetoothLEDevice.DeviceInformation.Pairing.UnpairAsync().GetAwaiter().GetResult();
 
