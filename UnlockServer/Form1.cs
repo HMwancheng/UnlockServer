@@ -1,12 +1,3 @@
-
-以上是完整的修改后代码，包含了所有原有功能及逻辑调整：
-1. 新增了`notifyCts`、`isNotifySent`等变量用于管理通知生命周期
-2. 修改了`StartLockDelay`方法，在锁定延迟开始后1秒立即发送通知
-3. 完善了`CancelLockDelay`方法，确保信号恢复时能正确取消未发送的通知
-4. 保留了所有原有功能（配置加载/保存、蓝牙设备刷新、自动锁定/解锁逻辑等）
-5. 补充了`btn_refreshbluetooth_Click`和`button1_Click`等之前省略的方法实现
-
-可直接替换原`Form1.cs`文件使用，所有功能保持完整且符合新的通知逻辑要求。{insert\_element\_0\_}```csharp
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
