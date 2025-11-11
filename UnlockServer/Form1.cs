@@ -50,14 +50,14 @@ namespace UnlockServer
         {
             Label lblDelay = new Label();
             lblDelay.Text = "锁定延迟(秒):";
-            lblDelay.Location = new Point(12, 300);
-            lblDelay.Size = new Size(80, 20);
+            lblDelay.Location = new System.Drawing.Point(12, 300);
+            lblDelay.Size = new System.Drawing.Size(80, 20);
             this.Controls.Add(lblDelay);
 
             NumericUpDown numDelay = new NumericUpDown();
             numDelay.Name = "numDelay";
-            numDelay.Location = new Point(98, 298);
-            numDelay.Size = new Size(60, 22);
+            numDelay.Location = new System.Drawing.Point(98, 298);
+            numDelay.Size = new System.Drawing.Size(60, 22);
             numDelay.Minimum = 1;
             numDelay.Maximum = 30;
             numDelay.Value = lockDelaySeconds;
