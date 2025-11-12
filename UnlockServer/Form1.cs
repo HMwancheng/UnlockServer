@@ -585,6 +585,21 @@ namespace UnlockServer
                 if (signalValid)
                 {
                     ResetLockDelayTimer();
+                    if (islocked && isautounlock)
+                    {
+                        if (manuallock && sessionSwitchClass.isLockBySoft == false)
+                        {
+                            Console.WriteLine("非软件锁定，不干预！");
+                            return;
+                        }
+                        Console.WriteLine("信号强度够且处于锁屏状态，解锁！");
+                        sessionSwitchClass.dounlocking = true;
+                        bool ret = UnLockByTimeOut();
+                        if (!ret)
+                        {
+                            isunlockfail = true;
+                        }
+                    }
                 }
                 // 信号无效，启动或继续延迟计时器
                 else
