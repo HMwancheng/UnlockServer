@@ -18,6 +18,5 @@
 
 添加预锁屏/解锁通知（预锁屏通知将在设备信号低于阈值或断联2秒后触发）
 
-<img width="835" height="735" alt="image" src="https://github.com/user-attachments/assets/bcec55fe-b081-417a-83fc-b3b99dc2afdf" />
-
+<img width="557" height="735" alt="image" src="https://github.com/user-attachments/assets/bcec55fe-b081-417a-83fc-b3b99dc2afdf" />
 <img width="557" height="172" alt="image" src="https://github.com/user-attachments/assets/4dc7a2a4-8439-4d7e-96fb-d285a1c4479e" />
