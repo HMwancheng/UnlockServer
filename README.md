@@ -16,5 +16,7 @@
 
 尝试绕过 "https://github.com/zixing131/UnlockServer/issues/2" 中提到的异常锁屏问题
 
+添加预锁屏/解锁通知（预锁屏通知将在设备信号低于阈值或断联2秒后触发）
+
 <img width="555" height="458" alt="image" src="https://github.com/user-attachments/assets/1b795767-45d4-4543-a5a7-983acf1dea39" />
 <img width="557" height="172" alt="image" src="https://github.com/user-attachments/assets/4dc7a2a4-8439-4d7e-96fb-d285a1c4479e" />
