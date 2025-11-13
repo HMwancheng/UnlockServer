@@ -55,7 +55,7 @@ namespace UnlockServer
 
             NumericUpDown numDelay = new NumericUpDown();
             numDelay.Name = "numDelay";
-            numDelay.Location = new System.Drawing.Point(390, 289);
+            numDelay.Location = new System.Drawing.Point(393, 291);
             numDelay.Size = new System.Drawing.Size(60, 22);
             numDelay.Minimum = 1;
             numDelay.Maximum = 30;
@@ -507,11 +507,12 @@ namespace UnlockServer
             return true;
         }
 
-        // 发送锁定通知（每秒可重复发送）
+        // 发送锁定通知（显示1秒，每秒发送）
         private void ShowLockNotification(int remainingSeconds)
         {
-            if (remainingSeconds >= 0) // 允许剩余0秒时提示（即将锁定）
+            if (remainingSeconds >= 0)
             {
+                // 第一个参数设置为1000ms（1秒），控制通知显示时长
                 notifyIcon1.ShowBalloonTip(1000, "即将锁定", 
                     $"蓝牙信号弱或丢失，将在 {remainingSeconds} 秒后锁定电脑...", 
                     ToolTipIcon.Warning);
@@ -657,15 +658,21 @@ namespace UnlockServer
             }
         }
 
-        // 重置锁定延迟计时器（新增重连通知）
+        // 重置锁定延迟计时器（仅在断开≥2秒时显示取消通知）
         private void ResetLockDelayTimer()
         {
-            if (isWaitingForLock)
+            if (isWaitingForLock && signalLossStartTime.HasValue)
             {
-                // 发送信号恢复通知
-                notifyIcon1.ShowBalloonTip(1000, "锁定取消", 
-                    "蓝牙信号已恢复，取消锁定操作", 
-                    ToolTipIcon.Info);
+                // 计算信号断开总时长
+                TimeSpan elapsed = DateTime.Now - signalLossStartTime.Value;
+                
+                // 仅当断开时间≥2秒（已显示过锁屏通知），才显示取消通知
+                if (elapsed.TotalSeconds >= 2)
+                {
+                    notifyIcon1.ShowBalloonTip(1000, "锁定取消", 
+                        "蓝牙信号已恢复，取消锁定操作", 
+                        ToolTipIcon.Info);
+                }
                 
                 Console.WriteLine("信号恢复，取消锁定");
                 signalLossStartTime = null;
