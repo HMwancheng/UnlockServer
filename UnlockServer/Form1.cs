@@ -55,7 +55,7 @@ namespace UnlockServer
 
             NumericUpDown numDelay = new NumericUpDown();
             numDelay.Name = "numDelay";
-            numDelay.Location = new System.Drawing.Point(393, 291);
+            numDelay.Location = new System.Drawing.Point(389, 289);
             numDelay.Size = new System.Drawing.Size(60, 22);
             numDelay.Minimum = 1;
             numDelay.Maximum = 30;
