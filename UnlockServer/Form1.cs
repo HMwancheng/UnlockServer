@@ -25,11 +25,10 @@ namespace UnlockServer
     public partial class Form1 : Form
     {
         BluetoothDiscover bluetoothDiscover;
-        // 新增：锁定延迟相关变量
+        // 锁定延迟相关变量
         private int lockDelaySeconds = 5; // 默认延迟5秒
         private DateTime? signalLossStartTime = null;
         private bool isWaitingForLock = false;
-        private bool lockNotificationSent = false;
 
         public Form1()
         {
@@ -41,11 +40,11 @@ namespace UnlockServer
             this.FormClosing += Form1_FormClosing;
             this.FormClosed += Form1_FormClosed;
 
-            // 新增：添加延迟设置控件
+            // 添加延迟设置控件
             AddDelayControl();
         }
 
-        // 新增：添加延迟设置控件
+        // 添加延迟设置控件
         private void AddDelayControl()
         {
             Label lblDelay = new Label();
@@ -56,7 +55,7 @@ namespace UnlockServer
 
             NumericUpDown numDelay = new NumericUpDown();
             numDelay.Name = "numDelay";
-            numDelay.Location = new System.Drawing.Point(393, 291);
+            numDelay.Location = new System.Drawing.Point(382, 289);
             numDelay.Size = new System.Drawing.Size(60, 22);
             numDelay.Minimum = 1;
             numDelay.Maximum = 30;
@@ -65,7 +64,7 @@ namespace UnlockServer
             this.Controls.Add(numDelay);
         }
 
-        // 新增：延迟时间变更事件
+        // 延迟时间变更事件
         private void NumDelay_ValueChanged(object sender, EventArgs e)
         {
             NumericUpDown numDelay = sender as NumericUpDown;
@@ -125,7 +124,7 @@ namespace UnlockServer
                 } 
                 btn_refreshbluetooth_Click(null, null);
 
-                // 新增：从配置加载延迟时间
+                // 从配置加载延迟时间
                 var delayControl = this.Controls["numDelay"] as NumericUpDown;
                 if (delayControl != null)
                 {
@@ -192,7 +191,7 @@ namespace UnlockServer
             reloadLockConfig(); 
             WanClient.reloadConfig();
 
-            // 新增：加载延迟时间配置
+            // 加载延迟时间配置
             lockDelaySeconds = OperateIniFile.ReadIniInt("setting", "lockdelay", 5);
         }
 
@@ -276,7 +275,7 @@ namespace UnlockServer
                     return;
                 }
 
-                // 新增：保存延迟时间配置
+                // 保存延迟时间配置
                 var delayControl = this.Controls["numDelay"] as NumericUpDown;
                 if (delayControl != null)
                 {
@@ -493,7 +492,7 @@ namespace UnlockServer
         }
 
         /// <summary>
-        /// 超时锁定
+        /// 超时解锁
         /// </summary>
         private bool UnLockByTimeOut()
         {
@@ -508,10 +507,10 @@ namespace UnlockServer
             return true;
         }
 
-        // 新增：发送锁定通知
+        // 发送锁定通知（每秒可重复发送）
         private void ShowLockNotification(int remainingSeconds)
         {
-            if (remainingSeconds > 0)
+            if (remainingSeconds >= 0) // 允许剩余0秒时提示（即将锁定）
             {
                 notifyIcon1.ShowBalloonTip(1000, "即将锁定", 
                     $"蓝牙信号弱或丢失，将在 {remainingSeconds} 秒后锁定电脑...", 
@@ -581,7 +580,7 @@ namespace UnlockServer
                     }
                 }
 
-                // 信号有效，重置计时器
+                // 信号有效，重置计时器并检查解锁
                 if (signalValid)
                 {
                     ResetLockDelayTimer();
@@ -609,7 +608,7 @@ namespace UnlockServer
             }
         }
 
-        // 新增：处理无效信号
+        // 处理无效信号（2秒后每秒发送剩余时间通知）
         private void HandleInvalidSignal(bool islocked)
         {
             if (islocked) return; // 已锁定状态不处理
@@ -619,20 +618,18 @@ namespace UnlockServer
                 // 开始计时
                 signalLossStartTime = DateTime.Now;
                 isWaitingForLock = true;
-                lockNotificationSent = false;
                 Console.WriteLine("蓝牙信号弱或丢失，开始计时...");
             }
             else if (signalLossStartTime.HasValue)
             {
-                // 计算已等待时间
+                // 计算已等待时间和剩余时间
                 TimeSpan elapsed = DateTime.Now - signalLossStartTime.Value;
                 int remainingSeconds = lockDelaySeconds - (int)elapsed.TotalSeconds;
 
-                // 1秒后发送通知
-                if (!lockNotificationSent && elapsed.TotalSeconds >= 1)
+                // 2秒后开始，每秒发送一次剩余时间通知（未到锁定时间）
+                if (elapsed.TotalSeconds >= 2 && remainingSeconds >= 0)
                 {
-                    ShowLockNotification(remainingSeconds > 0 ? remainingSeconds : 0);
-                    lockNotificationSent = true;
+                    ShowLockNotification(remainingSeconds);
                 }
 
                 // 达到延迟时间，执行锁定
@@ -660,15 +657,19 @@ namespace UnlockServer
             }
         }
 
-        // 新增：重置锁定延迟计时器
+        // 重置锁定延迟计时器（新增重连通知）
         private void ResetLockDelayTimer()
         {
             if (isWaitingForLock)
             {
+                // 发送信号恢复通知
+                notifyIcon1.ShowBalloonTip(1000, "锁定取消", 
+                    "蓝牙信号已恢复，取消锁定操作", 
+                    ToolTipIcon.Info);
+                
                 Console.WriteLine("信号恢复，取消锁定");
                 signalLossStartTime = null;
                 isWaitingForLock = false;
-                lockNotificationSent = false;
             }
         }
 
