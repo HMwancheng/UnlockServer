@@ -29,6 +29,7 @@ namespace UnlockServer
         private int lockDelaySeconds = 5; // 默认延迟5秒
         private DateTime? signalLossStartTime = null;
         private bool isWaitingForLock = false;
+        private bool lockNotificationSent = false; // 恢复：控制只发送一次锁屏通知
 
         public Form1()
         {
@@ -507,12 +508,11 @@ namespace UnlockServer
             return true;
         }
 
-        // 发送锁定通知（显示1秒，每秒发送）
+        // 发送锁定通知（只发送一次，显示1秒）
         private void ShowLockNotification(int remainingSeconds)
         {
             if (remainingSeconds >= 0)
             {
-                // 第一个参数设置为1000ms（1秒），控制通知显示时长
                 notifyIcon1.ShowBalloonTip(1000, "即将锁定", 
                     $"蓝牙信号弱或丢失，将在 {remainingSeconds} 秒后锁定电脑...", 
                     ToolTipIcon.Warning);
@@ -609,7 +609,7 @@ namespace UnlockServer
             }
         }
 
-        // 处理无效信号（2秒后每秒发送剩余时间通知）
+        // 处理无效信号（2秒后只发送一次锁屏通知）
         private void HandleInvalidSignal(bool islocked)
         {
             if (islocked) return; // 已锁定状态不处理
@@ -619,6 +619,7 @@ namespace UnlockServer
                 // 开始计时
                 signalLossStartTime = DateTime.Now;
                 isWaitingForLock = true;
+                lockNotificationSent = false; // 重置通知状态
                 Console.WriteLine("蓝牙信号弱或丢失，开始计时...");
             }
             else if (signalLossStartTime.HasValue)
@@ -627,10 +628,11 @@ namespace UnlockServer
                 TimeSpan elapsed = DateTime.Now - signalLossStartTime.Value;
                 int remainingSeconds = lockDelaySeconds - (int)elapsed.TotalSeconds;
 
-                // 2秒后开始，每秒发送一次剩余时间通知（未到锁定时间）
-                if (elapsed.TotalSeconds >= 2 && remainingSeconds >= 0)
+                // 2秒后且未发送过通知，发送一次锁屏通知
+                if (elapsed.TotalSeconds >= 2 && !lockNotificationSent && remainingSeconds >= 0)
                 {
                     ShowLockNotification(remainingSeconds);
+                    lockNotificationSent = true; // 标记为已发送
                 }
 
                 // 达到延迟时间，执行锁定
@@ -666,8 +668,8 @@ namespace UnlockServer
                 // 计算信号断开总时长
                 TimeSpan elapsed = DateTime.Now - signalLossStartTime.Value;
                 
-                // 仅当断开时间≥2秒（已显示过锁屏通知），才显示取消通知
-                if (elapsed.TotalSeconds >= 2)
+                // 仅当断开时间≥2秒且发送过锁屏通知，才显示取消通知
+                if (elapsed.TotalSeconds >= 2 && lockNotificationSent)
                 {
                     notifyIcon1.ShowBalloonTip(1000, "锁定取消", 
                         "蓝牙信号已恢复，取消锁定操作", 
@@ -677,6 +679,7 @@ namespace UnlockServer
                 Console.WriteLine("信号恢复，取消锁定");
                 signalLossStartTime = null;
                 isWaitingForLock = false;
+                lockNotificationSent = false; // 重置通知状态，以便下次使用
             }
         }
 
