@@ -1,0 +1,33 @@
+name: Build UnlockServer
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 安装.NET Framework 4.8 SDK
+      uses: microsoft/setup-msbuild@v2
+      with:
+        msbuild-architecture: x86
+
+    - name: 恢复NuGet包  # 修正路径：根目录下的.sln
+      run: nuget restore UnlockServer.sln
+
+    - name: 编译项目  # 修正路径：根目录下的.sln
+      run: msbuild UnlockServer.sln /p:Configuration=Release /p:Platform="Any CPU"
+
+    - name: 上传编译产物  # 注意：输出路径可能需要同步调整
+      uses: actions/upload-artifact@v4
+      with:
+        name: UnlockServer-Build
+        # 需根据实际项目结构确认输出目录（例如：如果项目名为UnlockServer，输出可能在 UnlockServer/bin/Release/）
+        path: UnlockServer/bin/Release/
