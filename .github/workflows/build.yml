@@ -2,9 +2,9 @@ name: Build UnlockServer
 
 on:
   push:
-    branches: [ main ]
+    branches: [ 1.4-fix ]
   pull_request:
-    branches: [ main ]
+    branches: [ 1.4-fix ]
 
 jobs:
   build:
