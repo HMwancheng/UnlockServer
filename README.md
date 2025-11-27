@@ -9,7 +9,7 @@
 
 ### UnlockServer： 一个蓝牙设备解锁锁定电脑的小工具
 
-食用方法和搭配使用的远程软件请至原作者处查看：https://github.com/zixing131/UnlockServer
+原作者：https://github.com/zixing131
 
 #### 更新说明：
 添加锁屏延时功能
