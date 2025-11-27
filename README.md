@@ -5,7 +5,7 @@
 
 ~~没有Release，尝试请到Action~~
 
-
+查看说明：https://github.com/HMwancheng/UnlockServer/blob/1.4-fix/%E8%93%9D%E7%89%99%E8%A7%A3%E9%94%81%E5%B7%A5%E5%85%B7-%E9%A3%9F%E7%94%A8%E8%AF%B4%E6%98%8E.md
 
 ### UnlockServer： 一个蓝牙设备解锁锁定电脑的小工具
 
