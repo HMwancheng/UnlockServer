@@ -38,6 +38,13 @@ jobs:
         cp "远程解锁3.1.0.exe" build_output/
       shell: bash
 
+    - name: 压缩产物为ZIP包
+      run: |
+        # 使用PowerShell的Compress-Archive命令（Windows环境）
+        # 压缩build_output目录下所有内容为UnlockServer_1.4-fix.zip
+        powershell Compress-Archive -Path build_output/* -DestinationPath UnlockServer_1.4-fix.zip -Force
+      shell: cmd
+
     - name: 上传构建产物（Artifact，可选保留）
       uses: actions/upload-artifact@v4
       with:
