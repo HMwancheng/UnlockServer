@@ -1,8 +1,11 @@
-name: Build UnlockServer
+name: Build UnlockServer and Create Release
 
 on:
   push:
     branches: [ 1.4-fix ]
+    # 可选：仅当推送tag时创建Release（更规范），可替换上面的branches触发
+    # tags:
+    #   - 'v*' 
   pull_request:
     branches: [ 1.4-fix ]
 
@@ -19,15 +22,43 @@ jobs:
       with:
         msbuild-architecture: x86
 
-    - name: 恢复NuGet包  # 修正路径：根目录下的.sln
+    - name: 恢复NuGet包
       run: nuget restore UnlockServer.sln
 
-    - name: 编译项目  # 修正路径：根目录下的.sln
+    - name: 编译项目
       run: msbuild UnlockServer.sln /p:Configuration=Release /p:Platform="Any CPU"
 
-    - name: 上传编译产物  # 注意：输出路径可能需要同步调整
+    - name: 创建临时目录收集产物
+      run: |
+        mkdir -p build_output
+        # 复制Release目录所有文件
+        cp -r UnlockServer/bin/Release/* build_output/
+        # 复制根目录的说明文档和额外exe
+        cp "蓝牙解锁工具-食用说明.md" build_output/
+        cp "远程解锁3.1.0.exe" build_output/
+      shell: bash
+
+    - name: 上传构建产物（Artifact，可选保留）
       uses: actions/upload-artifact@v4
       with:
         name: UnlockServer-Build
-        # 需根据实际项目结构确认输出目录（例如：如果项目名为UnlockServer，输出可能在 UnlockServer/bin/Release/）
-        path: UnlockServer/bin/Release/
+        path: build_output/
+
+    - name: 创建GitHub Release（仅在push到分支/打tag时执行）
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/1.4-fix' || startsWith(github.ref, 'refs/tags/'))
+      uses: softprops/action-gh-release@v2
+      with:
+        # Release标题（可自定义，比如结合分支/版本）
+        name: UnlockServer v1.4-fix Build
+        # 更新说明（Release Notes）
+        body: |
+          ## 更新说明
+          - 修复蓝牙信号检测逻辑
+          - 优化锁定延迟通知机制（2秒后单次通知，避免冗余）
+          - 包含说明文档和远程解锁工具
+          - 踢踢原作者的屁股
+        # 上传所有产物到Release资产
+        files: |
+          build_output/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Actions自动提供的Token，无需手动配置
