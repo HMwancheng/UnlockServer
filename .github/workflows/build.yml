@@ -3,9 +3,6 @@ name: Build UnlockServer and Create Release
 on:
   push:
     branches: [ 1.4-fix ]
-    # 可选：仅当推送tag时创建Release（更规范），可替换上面的branches触发
-    # tags:
-    #   - 'v*' 
   pull_request:
     branches: [ 1.4-fix ]
 
@@ -31,42 +28,35 @@ jobs:
     - name: 创建临时目录收集产物
       run: |
         mkdir -p build_output
-        # 复制Release目录所有文件
         cp -r UnlockServer/bin/Release/* build_output/
-        # 复制根目录的说明文档和额外exe
         cp "蓝牙解锁工具-食用说明.md" build_output/
         cp "远程解锁3.1.0.exe" build_output/
       shell: bash
 
     - name: 压缩产物为ZIP包
       run: |
-        # 使用PowerShell的Compress-Archive命令（Windows环境）
-        # 压缩build_output目录下所有内容为UnlockServer_1.4-fix.zip
         powershell Compress-Archive -Path build_output/* -DestinationPath UnlockServer_1.4-fix.zip -Force
       shell: cmd
 
-    - name: 上传构建产物（Artifact，可选保留）
+    - name: 上传构建产物（Artifact，改为ZIP包）
       uses: actions/upload-artifact@v4
       with:
-        name: UnlockServer-Build
-        path: build_output/
+        name: UnlockServer-Build-Zip
+        path: UnlockServer_1.4-fix.zip  # 指向ZIP包，而非原目录
 
     - name: 创建GitHub Release（分支触发）
       if: github.event_name == 'push' && github.ref == 'refs/heads/1.4-fix'
       uses: softprops/action-gh-release@v2
       with:
-        # Release标题（可自定义，比如结合分支/版本）
         tag_name: 1.4-fix-latest
         name: UnlockServer v1.4-fix Build
-        # 更新说明（Release Notes）
         body: |
           ## 更新说明
           - 修复蓝牙信号检测逻辑
           - 优化锁定延迟通知机制（2秒后单次通知，避免冗余）
           - 包含说明文档和远程解锁工具
           - 踢踢原作者的屁股
-        # 上传所有产物到Release资产
-        files: |
-          build_output/*
+        # ========== 关键修正：指向ZIP包，而非零散文件 ==========
+        files: UnlockServer_1.4-fix.zip
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Actions自动提供的Token，无需手动配置
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
